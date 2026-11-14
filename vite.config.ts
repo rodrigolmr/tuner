@@ -1,5 +1,43 @@
+import { readFileSync } from 'node:fs';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const { version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string };
+
+/**
+ * Everything the app needs ships with it, so production builds forbid any
+ * request to another origin. Not applied in development, where Vite injects
+ * inline scripts for hot reloading.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "object-src 'none'",
+].join('; ');
+
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'content-security-policy',
+    apply: 'build',
+    transformIndexHtml: () => [
+      {
+        tag: 'meta',
+        attrs: { 'http-equiv': 'Content-Security-Policy', content: CONTENT_SECURITY_POLICY },
+        injectTo: 'head-prepend',
+      },
+    ],
+  };
+}
 
 // GitHub Pages serves the site from /<repository>/. Override with BASE_PATH
 // when hosting somewhere else (for example BASE_PATH=/ for a root domain).
@@ -9,11 +47,15 @@ const THEME_COLOR = '#0e1014';
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   build: {
     target: 'es2020',
     sourcemap: true,
   },
   plugins: [
+    contentSecurityPolicy(),
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,

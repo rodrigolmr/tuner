@@ -8,7 +8,10 @@
   --border-strong: #3a4252;
   --text: #eef0f5;
   --muted: #98a1b3;
-  --faint: #626b7d;
+  /* The quietest text: still 4.5:1 against the lightest surface it sits on. */
+  --faint: #8a92a3;
+  /* For icons only; too dim for text. */
+  --dim: #626b7d;
   --accent: #7aa7ff;
   --accent-soft: rgba(122, 167, 255, 0.14);
   --accent-ink: #0b1020;
@@ -1042,7 +1045,7 @@ select:hover {
   display: grid;
   place-items: center;
   border-radius: 0 0 13px 13px;
-  color: var(--faint);
+  color: var(--dim);
   transition:
     color 120ms linear,
     background-color 120ms linear;

@@ -22,6 +22,10 @@ export function setupPwa(callbacks: PwaCallbacks): void {
     onOfflineReady() {
       callbacks.onOfflineReady();
     },
+    onRegisterError(error) {
+      // The tuner works without it, but not offline; leave a trace for bug reports.
+      console.warn('Service worker registration failed:', error);
+    },
     onRegisteredSW(_url, registration) {
       if (!registration) return;
       const check = () => {

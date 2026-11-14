@@ -443,6 +443,7 @@ export class TunerApp {
     gauge.dataset.state = view.active && view.direction ? view.direction : 'idle';
     this.gauge.setCents(view.active ? view.cents : null);
 
+    byId('note').toggleAttribute('data-empty', view.targetMidi === null);
     if (view.targetMidi === null) {
       byId('note-name').textContent = '–';
       byId('note-accidental').textContent = '';

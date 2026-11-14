@@ -288,6 +288,16 @@ select {
   color: var(--muted);
 }
 
+/* The placeholder dash shown while there is no note. */
+.note[data-empty] {
+  font-weight: 300;
+  opacity: 0.5;
+}
+
+.note[data-empty] .note-marks {
+  display: none;
+}
+
 .gauge[data-state='in-tune'] .note {
   color: var(--good);
 }

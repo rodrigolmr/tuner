@@ -70,7 +70,7 @@ export class Gauge {
     this.needle = svg('g', { class: 'dial-needle' });
     const [tipX, tipY] = polar(0, RADIUS - 10);
     this.needle.append(
-      svg('line', { x1: CENTER_X, y1: CENTER_Y - 14, x2: tipX.toFixed(2), y2: tipY.toFixed(2) }),
+      svg('line', { x1: CENTER_X, y1: CENTER_Y, x2: tipX.toFixed(2), y2: tipY.toFixed(2) }),
       svg('circle', { cx: CENTER_X, cy: CENTER_Y, r: 7 }),
     );
     this.needle.style.transformOrigin = `${CENTER_X}px ${CENTER_Y}px`;

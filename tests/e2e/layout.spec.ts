@@ -53,12 +53,19 @@ async function overflow(page: Page): Promise<{ sideways: number; downwards: numb
   }));
 }
 
-/** Saves a screenshot per browser for visual review when SCREENSHOT_DIR is set. */
+/**
+ * Saves a screenshot per browser for visual review when SCREENSHOT_DIR is set.
+ * Colour transitions are taken to their end first: a headless browser that
+ * has drawn no frame since the change would otherwise show where they start.
+ */
 async function snapshot(page: Page, name: string): Promise<void> {
   const directory = process.env.SCREENSHOT_DIR;
   if (!directory) return;
   const browser = test.info().project.name;
-  await page.screenshot({ path: path.join(directory, `layout-${browser}-${name}.png`) });
+  await page.screenshot({
+    path: path.join(directory, `layout-${browser}-${name}.png`),
+    animations: 'disabled',
+  });
 }
 
 /**
@@ -245,6 +252,7 @@ test.describe('on a phone', () => {
     for (const [instrument, count] of Object.entries(expectedStrings)) {
       await page.getByLabel('Instrument', { exact: true }).selectOption(instrument);
       await expect(page.locator('.string')).toHaveCount(count);
+      await expect(page.locator('#tuned-count-text')).toHaveText(`0 of ${count} in tune`);
       expect(await overflow(page), instrument).toEqual({ sideways: 0, downwards: 0 });
       await expectDialDrawn(page);
       if (count > 0) {
@@ -254,6 +262,7 @@ test.describe('on a phone', () => {
     }
     // The viola caipira stacks the two strings of each pair.
     await page.getByLabel('Instrument', { exact: true }).selectOption('viola-caipira');
+    await expect(page.locator('#tuned-count')).toHaveText('0 of 10 in tune');
     const low = await box(page, '.string:nth-child(1)');
     const high = await box(page, '.string:nth-child(2)');
     expect(high.left).toBeCloseTo(low.left, 0);

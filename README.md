@@ -1,7 +1,7 @@
 # Pluck Tuner
 
 A tuner for string instruments that runs entirely in the browser. It listens
-through the microphone, shows the note with a needle from -50 to +50 cents and
+through the microphone, shows the note inside a dial from -50 to +50 cents and
 tells you whether to tighten or loosen the string. It installs as an app (PWA),
 works offline, and the audio never leaves your device.
 

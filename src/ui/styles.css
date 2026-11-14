@@ -1,19 +1,25 @@
 :root {
   /* Palette */
   --bg: #0e1014;
-  --surface: #171a21;
-  --surface-raised: #1f232d;
-  --border: #2b303c;
+  --surface: #161a22;
+  --surface-raised: #1f242f;
+  --surface-high: #2a3140;
+  --border: #272c38;
+  --border-strong: #3a4252;
   --text: #eef0f5;
   --muted: #98a1b3;
+  --faint: #626b7d;
   --accent: #7aa7ff;
-  --accent-soft: rgba(122, 167, 255, 0.16);
+  --accent-soft: rgba(122, 167, 255, 0.14);
+  --accent-ink: #0b1020;
   --good: #3ddc84;
-  --good-soft: rgba(61, 220, 132, 0.16);
+  --good-soft: rgba(61, 220, 132, 0.14);
+  --good-ink: #06210f;
   --danger: #ff8b8b;
 
   /* Shape and rhythm */
-  --radius: 14px;
+  --radius: 16px;
+  --radius-large: 26px;
   --gap: 12px;
   --page-width: 520px;
   --tap: 44px;
@@ -111,9 +117,9 @@ svg {
 
 .brand h1 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-size: 1.3rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
 }
 
 .brand-mark {
@@ -125,6 +131,8 @@ svg {
 .top-actions {
   display: flex;
   gap: 4px;
+  /* Lines the icons up with the edge of the cards below. */
+  margin-right: -8px;
 }
 
 .icon-button {
@@ -136,10 +144,13 @@ svg {
   border-radius: 50%;
   background: transparent;
   color: var(--muted);
+  transition:
+    background-color 120ms linear,
+    color 120ms linear;
 }
 
 .icon-button:hover {
-  background: var(--surface);
+  background: var(--surface-raised);
   color: var(--text);
 }
 
@@ -153,135 +164,276 @@ svg {
 .selectors {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: var(--gap);
+  gap: 10px;
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: relative;
   min-width: 0;
 }
 
+/* The label sits inside the box, above the chosen value. */
 .field-label {
-  font-size: 0.75rem;
+  position: absolute;
+  top: 9px;
+  left: 15px;
+  font-size: 0.66rem;
+  font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  pointer-events: none;
 }
 
 select {
   appearance: none;
   width: 100%;
-  min-height: var(--tap);
-  padding: 0 36px 0 12px;
+  min-height: 58px;
+  padding: 25px 38px 8px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2398a1b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E")
-    no-repeat right 8px center / 22px;
+    no-repeat right 10px center / 22px;
+  font-size: 1.02rem;
+  font-weight: 600;
   text-overflow: ellipsis;
+  transition: border-color 120ms linear;
+}
+
+select:hover {
+  border-color: var(--border-strong);
 }
 
 /* ---- Meter -------------------------------------------------------------- */
 
 .stage {
+  position: relative;
   flex: 1;
+  min-height: 250px;
+}
+
+/*
+ * The card fills the stage without taking part in its height, so the dial
+ * can shrink to whatever room the screen leaves instead of pushing the
+ * strings off it.
+ */
+.gauge {
+  --needle: var(--accent);
+
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--gap);
+  gap: 6px;
+  padding: 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  background: linear-gradient(180deg, #181c25 0%, #11141a 100%);
+  overflow: hidden;
+  transition: border-color 260ms ease;
 }
 
-.gauge {
-  width: 100%;
-  max-width: 440px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  --needle: var(--accent);
+.gauge[data-state='idle'] {
+  --needle: #6c768b;
 }
 
 .gauge[data-state='in-tune'] {
   --needle: var(--good);
+  border-color: #1f6a44;
+}
+
+/* Light behind the dial: blue while a note is off, green once it is in tune. */
+.gauge::before,
+.gauge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.gauge::before {
+  background: radial-gradient(75% 60% at 50% 44%, rgba(122, 167, 255, 0.15), transparent 72%);
+}
+
+.gauge::after {
+  background: radial-gradient(75% 60% at 50% 44%, rgba(61, 220, 132, 0.2), transparent 72%);
+}
+
+.gauge[data-state='flat']::before,
+.gauge[data-state='sharp']::before,
+.gauge[data-state='in-tune']::after {
+  opacity: 1;
+}
+
+/* As wide as the card allows, and shorter when the card is short. */
+.meter-slot {
+  flex: 0 1 auto;
+  width: min(100%, 440px);
+  min-height: 0;
+  aspect-ratio: 320 / 182;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+
+.meter {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 320 / 182;
+  /* The note name is sized from the width of the dial. */
+  container-type: inline-size;
+}
+
+/* The largest dial that fits the slot both ways. */
+@supports (width: 1cqh) {
+  .meter {
+    width: min(100cqw, 100cqh * 320 / 182);
+    max-height: none;
+  }
 }
 
 .dial {
+  display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   overflow: visible;
 }
 
-.dial-track {
-  stroke: var(--border);
+.dial-segment {
+  stroke: #2b313d;
   stroke-width: 3;
+  transition: stroke 180ms ease-out;
+}
+
+.dial-segment.major {
+  stroke: #454e61;
+}
+
+/* The whole ring takes on a green cast once the note is in tune. */
+.gauge[data-state='in-tune'] .dial-segment {
+  stroke: #1c4835;
+}
+
+.gauge[data-state='in-tune'] .dial-segment.major {
+  stroke: #2a6e4e;
+}
+
+.dial-segment.lit,
+.gauge[data-state='in-tune'] .dial-segment.lit {
+  stroke: var(--needle);
+  transition-duration: 60ms;
 }
 
 .dial-zone {
   stroke: var(--good);
-  stroke-width: 9;
-  opacity: 0.55;
+  stroke-width: 3.5;
   stroke-linecap: butt;
+  opacity: 0.6;
+  transition: opacity 150ms linear;
 }
 
-.dial-tick {
-  stroke: var(--border);
-  stroke-width: 1.5;
-}
-
-.dial-tick.major {
-  stroke: var(--muted);
-}
-
-.dial-tick.center {
+.dial-notch {
+  fill: var(--good);
   stroke: var(--good);
-  stroke-width: 2.5;
+  stroke-width: 1.5;
+  opacity: 0.6;
+  transition: opacity 150ms linear;
+}
+
+.gauge[data-state='in-tune'] .dial-zone,
+.gauge[data-state='in-tune'] .dial-notch {
+  opacity: 1;
 }
 
 .dial-label {
-  fill: var(--muted);
+  fill: var(--faint);
   stroke: none;
-  font-size: 11px;
+  font-size: 20px;
+  font-weight: 600;
   text-anchor: middle;
+  transition:
+    fill 150ms linear,
+    opacity 150ms linear;
 }
 
-.dial-needle {
-  stroke: var(--needle);
-  stroke-width: 3.5;
+.gauge[data-state='flat'] .dial-label.flat,
+.gauge[data-state='sharp'] .dial-label.sharp {
+  fill: var(--accent);
+}
+
+.dial-pointer {
   /* Follows the readings quickly while a note sounds... */
   transition:
     transform 90ms linear,
-    stroke 150ms linear;
-}
-
-.dial-needle circle {
-  fill: var(--needle);
-  stroke: none;
-  transition: fill 150ms linear;
+    opacity 200ms linear;
 }
 
 /* ...and drifts back to the centre slowly when it stops. */
-.gauge[data-state='idle'] .dial-needle {
-  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-  opacity: 0.45;
+.gauge[data-state='idle'] .dial-pointer {
+  transition:
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms linear;
 }
 
-.readout {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 4px;
+.dial-pointer-bar {
+  stroke: var(--needle);
+  stroke-width: 4.5;
+  transition: stroke 150ms linear;
 }
 
+/* A dark outline keeps the pointer apart from the bars it passes over. */
+.dial-pointer-edge {
+  stroke: #12151c;
+  stroke-width: 9.5;
+}
+
+.dial-pointer-glow {
+  stroke: var(--needle);
+  stroke-width: 16;
+  opacity: 0.22;
+  transition:
+    stroke 150ms linear,
+    opacity 150ms linear;
+}
+
+.gauge[data-state='idle'] .dial-pointer-glow {
+  opacity: 0;
+}
+
+/* The note name sits in the middle of the dial, on its base line. */
 .note {
-  display: flex;
-  align-items: stretch;
-  font-size: clamp(4.5rem, 24vw, 7rem);
+  position: absolute;
+  left: 50%;
+  bottom: 6.5%;
+  transform: translateX(-50%);
+  font-size: clamp(4rem, 25vw, 8rem);
+  font-size: 30cqw;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
-  transition: color 150ms linear;
+  white-space: nowrap;
+  transition:
+    color 150ms linear,
+    text-shadow 150ms linear;
+}
+
+.note[data-length='2'] {
+  font-size: clamp(3.2rem, 20vw, 6.4rem);
+  font-size: 24cqw;
+}
+
+.note[data-length='3'] {
+  font-size: clamp(2.7rem, 17vw, 5.4rem);
+  font-size: 20cqw;
 }
 
 .gauge[data-state='idle'] .note {
@@ -291,76 +443,219 @@ select {
 /* The placeholder dash shown while there is no note. */
 .note[data-empty] {
   font-weight: 300;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .note[data-empty] .note-marks {
   display: none;
 }
 
-.gauge[data-state='in-tune'] .note {
-  color: var(--good);
+/* The dash breathes while the app listens for a note. */
+.app[data-mic='running'] .note[data-empty] {
+  animation: breathe 2.6s ease-in-out infinite;
 }
 
+@keyframes breathe {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.gauge[data-state='in-tune'] .note {
+  color: var(--good);
+  text-shadow: 0 0 0.4em rgba(61, 220, 132, 0.4);
+}
+
+/* Accidental and octave hang to the right, so the letter stays centred. */
 .note-marks {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-width: 0.5em;
-  padding: 0.08em 0 0.06em 0.06em;
+  padding: 0.16em 0 0.2em 0.08em;
   font-size: 0.36em;
   font-weight: 600;
+  letter-spacing: 0;
   color: var(--muted);
+  text-shadow: none;
+}
+
+.status {
+  width: 100%;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .hint {
-  min-height: 1.6em;
-  margin-top: 6px;
-  font-size: 1.25rem;
-  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--accent-soft);
   color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    background-color 150ms linear,
+    color 150ms linear;
 }
 
 .gauge[data-state='idle'] .hint {
+  background: transparent;
+  color: var(--muted);
   font-size: 1rem;
   font-weight: 500;
-  color: var(--muted);
 }
 
 .gauge[data-state='in-tune'] .hint {
+  background: var(--good-soft);
   color: var(--good);
 }
 
 .gauge[data-state='flat'] .hint::after {
-  content: ' ↑';
+  content: '↑';
+  margin-left: 0.35em;
 }
 
 .gauge[data-state='sharp'] .hint::after {
-  content: ' ↓';
+  content: '↓';
+  margin-left: 0.35em;
 }
 
 .numbers {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   min-height: 1.5em;
   color: var(--muted);
+  font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
 }
 
 /* ---- Microphone button -------------------------------------------------- */
 
+/* Until the microphone runs, its button takes the place of the note. */
+.app:not([data-mic='running']) .note {
+  visibility: hidden;
+}
+
+.app:not([data-mic='running']) .dial-label,
+.app:not([data-mic='running']) .dial-pointer {
+  opacity: 0;
+}
+
+.app:not([data-mic='running']) .gauge::before {
+  opacity: 0.7;
+}
+
+.app:not([data-mic='running']) .numbers {
+  display: none;
+}
+
 .mic-panel {
-  width: 100%;
-  max-width: 440px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  justify-content: center;
 }
 
 .app[data-mic='running'] .mic-panel {
   display: none;
 }
+
+.mic-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  gap: clamp(6px, 3cqw, 12px);
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font-size: 1rem;
+  font-size: clamp(0.8rem, 4.7cqw, 1.05rem);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.mic-orb {
+  position: relative;
+  width: 72px;
+  width: clamp(44px, 21cqw, 92px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #a3c2ff 0%, #6b99f5 100%);
+  color: var(--accent-ink);
+  box-shadow:
+    0 0 0 7px var(--accent-soft),
+    0 12px 28px -8px rgba(122, 167, 255, 0.6);
+  transition: transform 120ms ease;
+}
+
+.mic-button:active:not(:disabled) .mic-orb {
+  transform: scale(0.95);
+}
+
+.mic-orb svg {
+  width: 44%;
+  height: 44%;
+  stroke-width: 2;
+}
+
+/* A ring that spreads out from the button, inviting a tap. */
+.mic-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ripple 2.6s ease-out infinite;
+}
+
+.mic-button:disabled .mic-orb::after {
+  animation: none;
+}
+
+@keyframes ripple {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+.mic-message {
+  order: -1;
+  max-width: 34ch;
+  margin: 0 0 4px;
+  text-align: center;
+  color: var(--danger);
+  font-size: 0.92rem;
+}
+
+.mic-message:empty {
+  display: none;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
 
 .primary-button {
   width: 100%;
@@ -373,15 +668,9 @@ select {
   border: 0;
   border-radius: var(--radius);
   background: var(--accent);
-  color: #0b1020;
+  color: var(--accent-ink);
   font-size: 1.1rem;
   font-weight: 700;
-}
-
-.primary-button svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 2;
 }
 
 .primary-button.compact {
@@ -392,18 +681,10 @@ select {
 .secondary-button {
   min-height: var(--tap);
   padding: 0 18px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: transparent;
   font-weight: 600;
-}
-
-.mic-message {
-  margin: 0;
-  min-height: 1.4em;
-  text-align: center;
-  color: var(--danger);
-  font-size: 0.95rem;
 }
 
 /* ---- Strings ------------------------------------------------------------ */
@@ -411,7 +692,7 @@ select {
 .strings-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .strings-header {
@@ -431,6 +712,10 @@ select {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.strings-hint {
+  text-align: center;
 }
 
 .strings-hint:empty {
@@ -459,11 +744,17 @@ select {
   color: var(--muted);
   font-weight: 600;
   white-space: nowrap;
+  transition:
+    background-color 120ms linear,
+    color 120ms linear;
 }
 
 .segmented button[aria-pressed='true'] {
-  background: var(--accent);
-  color: #0b1020;
+  background: var(--surface-high);
+  color: var(--text);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .strings {
@@ -478,12 +769,25 @@ select {
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
   overflow: hidden;
   transition:
     border-color 120ms linear,
+    box-shadow 120ms linear;
+}
+
+/* Tint laid over the card for the string being played. */
+.string::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 120ms linear,
     background-color 120ms linear;
 }
 
@@ -493,16 +797,29 @@ select {
 
 .string[data-active] {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 8px 20px -10px var(--accent);
+}
+
+.string[data-active]::before {
+  opacity: 0.16;
 }
 
 .string[data-in-tune] {
   border-color: var(--good);
-  background: var(--good-soft);
+  box-shadow:
+    0 0 0 1px var(--good),
+    0 8px 20px -10px var(--good);
+}
+
+.string[data-in-tune]::before {
+  background: var(--good);
 }
 
 .string-select,
 .string-tone {
+  position: relative;
   border: 0;
   background: transparent;
   display: grid;
@@ -510,12 +827,12 @@ select {
 }
 
 .string-select {
-  min-height: 50px;
-  padding: 8px 2px 4px;
+  min-height: 52px;
+  padding: 9px 2px 5px;
 }
 
 .string-note {
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -529,20 +846,27 @@ select {
 
 .string-check {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 4px;
+  right: 4px;
   width: 16px;
   height: 16px;
   display: none;
   place-items: center;
   border-radius: 50%;
   background: var(--good);
-  color: #06210f;
+  color: var(--good-ink);
   pointer-events: none;
 }
 
 .string[data-tuned] .string-check {
   display: grid;
+  animation: pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0);
+  }
 }
 
 .string-check svg {
@@ -552,9 +876,15 @@ select {
 }
 
 .string-tone {
-  min-height: 38px;
+  min-height: 36px;
   border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
   color: var(--muted);
+  transition: color 120ms linear;
+}
+
+.string-tone:hover {
+  color: var(--text);
 }
 
 .string-tone svg {
@@ -571,6 +901,25 @@ select {
   fill: currentColor;
 }
 
+/*
+ * Tall screens have room for more air and bigger buttons; two rows of strings
+ * stay compact. Kept behind @supports because a declaration that uses var()
+ * is not dropped by browsers that do not know the dvh unit.
+ */
+@supports (height: 1dvh) {
+  :root {
+    --gap: clamp(12px, 1.8dvh, 16px);
+  }
+
+  .string-select {
+    min-height: clamp(52px, 8.5dvh / var(--rows, 1), 72px);
+  }
+
+  .string-tone {
+    min-height: clamp(36px, 5.2dvh / var(--rows, 1), 46px);
+  }
+}
+
 /* ---- Footer ------------------------------------------------------------- */
 
 .footnote {
@@ -578,15 +927,16 @@ select {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--muted);
-  font-size: 0.78rem;
+  color: var(--faint);
+  font-size: 0.76rem;
   text-align: center;
+  text-wrap: balance;
 }
 
 .footnote svg {
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 /* ---- Sheets (settings and share) ---------------------------------------- */
@@ -599,37 +949,68 @@ select {
   padding: 0;
   border: 1px solid var(--border);
   border-bottom: 0;
-  border-radius: 22px 22px 0 0;
-  background: var(--surface);
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
+  background: linear-gradient(180deg, #1b1f29 0%, var(--surface) 140px);
   color: var(--text);
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.5);
+}
+
+.sheet[open] {
+  animation: sheet-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
 }
 
 .sheet::backdrop {
-  background: rgba(4, 6, 10, 0.66);
+  background: rgba(4, 6, 10, 0.62);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
 }
 
 .sheet-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 12px 20px calc(24px + env(safe-area-inset-bottom));
+  gap: 18px;
+  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+}
+
+/* A handle, as on a drawer pulled up from the bottom of the screen. */
+.sheet-body::before {
+  content: '';
+  align-self: center;
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
 }
 
 .sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-right: -8px;
 }
 
 .sheet-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
 }
 
 .setting {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.setting + .setting {
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
 
 .setting-head {
@@ -662,7 +1043,7 @@ input[type='range'] {
   flex: none;
   width: var(--tap);
   height: var(--tap);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface-raised);
   font-size: 1.3rem;
@@ -738,12 +1119,13 @@ input[type='range'] {
   bottom: calc(24px + env(safe-area-inset-bottom));
   z-index: 30;
   max-width: calc(100vw - 32px);
-  padding: 10px 16px;
-  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: var(--surface-raised);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  background: var(--surface-high);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   font-size: 0.95rem;
+  font-weight: 500;
   text-align: center;
   opacity: 0;
   transform: translate(-50%, 12px);
@@ -773,7 +1155,7 @@ input[type='range'] {
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   background: var(--surface-raised);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 
 .update-banner button {
@@ -782,7 +1164,7 @@ input[type='range'] {
   border: 0;
   border-radius: 999px;
   background: var(--accent);
-  color: #0b1020;
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -830,13 +1212,21 @@ body[data-debug] .app {
   min-height: 0;
 }
 
+body[data-debug] .stage {
+  min-height: 380px;
+}
+
 /* ---- Larger screens ----------------------------------------------------- */
 
 @media (min-width: 700px) {
   .sheet {
     margin: auto;
     border-bottom: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: var(--radius-large);
+  }
+
+  .sheet-body::before {
+    display: none;
   }
 }
 
@@ -865,9 +1255,16 @@ body[data-debug] .app {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dial-needle,
-  .gauge[data-state='idle'] .dial-needle,
+  .dial-pointer,
+  .gauge[data-state='idle'] .dial-pointer,
   .toast {
     transition-duration: 1ms;
+  }
+
+  .mic-orb::after,
+  .sheet[open],
+  .string[data-tuned] .string-check,
+  .app[data-mic='running'] .note[data-empty] {
+    animation: none;
   }
 }

@@ -470,16 +470,20 @@ export class TunerApp {
     gauge.dataset.state = view.active && view.direction ? view.direction : 'idle';
     this.gauge.setCents(view.active ? view.cents : null);
 
-    byId('note').toggleAttribute('data-empty', view.targetMidi === null);
+    const note = byId('note');
+    note.toggleAttribute('data-empty', view.targetMidi === null);
     if (view.targetMidi === null) {
       byId('note-name').textContent = '–';
       byId('note-accidental').textContent = '';
       byId('note-octave').textContent = '';
+      delete note.dataset.length;
     } else {
       const label = noteLabel(view.targetMidi, this.settings);
       byId('note-name').textContent = label.base;
       byId('note-accidental').textContent = label.accidental;
       byId('note-octave').textContent = String(label.octave);
+      // "Sol" needs smaller type than "G" to fit inside the dial.
+      note.dataset.length = String(label.base.length);
     }
     byId('hint').textContent = this.hintFor(view);
     byId('cents').textContent = view.cents === null ? NO_BREAK_SPACE : formatCents(view.cents);

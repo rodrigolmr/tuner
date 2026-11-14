@@ -679,10 +679,6 @@ select:hover {
  */
 .privacy {
   order: -1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
   margin: 0;
   color: var(--faint);
   font-size: 0.76rem;
@@ -690,10 +686,12 @@ select:hover {
   text-wrap: balance;
 }
 
+/* Part of the first line, so it stays next to the words when they wrap. */
 .privacy svg {
-  flex: none;
   width: 13px;
   height: 13px;
+  margin-right: 3px;
+  vertical-align: -2px;
 }
 
 .app[data-mic='running'] .privacy {

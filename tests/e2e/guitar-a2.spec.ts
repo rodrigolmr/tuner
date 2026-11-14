@@ -72,10 +72,12 @@ test.describe('guitar with an A2 that is in tune', () => {
     await expectReading(page, { note: 'A2', cents: 0, hint: 'In tune' });
   });
 
-  test('resumes after the page was in the background', async ({ page }) => {
-    await page.goto('./');
+  test('closes the microphone in the background and reopens it by itself', async ({ page }) => {
+    await page.goto('./?debug=1');
+    const output = page.locator('#debug-output');
     await enableMicrophone(page);
     await expect(page.getByTestId('note')).toHaveText('A2');
+    await expect(output).toContainText('track         : live');
 
     const setVisibility = (state: 'hidden' | 'visible') =>
       page.evaluate((value) => {
@@ -88,10 +90,27 @@ test.describe('guitar with an A2 that is in tune', () => {
 
     await setVisibility('hidden');
     await expect(page.getByTestId('note')).toHaveText('–');
+    // Nothing listens while the app is not on screen.
+    await expect(output).toContainText('track         : none');
+
+    // Every state the microphone button goes through from here on.
+    await page.evaluate(() => {
+      const app = document.getElementById('app')!;
+      const states: string[] = [];
+      Object.assign(window, { micStates: states });
+      new MutationObserver(() => states.push(app.dataset.mic ?? '')).observe(app, {
+        attributeFilter: ['data-mic'],
+      });
+    });
     await setVisibility('visible');
     await expectReading(page, { note: 'A2', cents: 0, hint: 'In tune' });
-    // It came back by itself: no prompt asking for another tap.
+    await expect(output).toContainText('track         : live');
+    // It came back by itself: the button never showed up asking for a tap.
     await expect(page.locator('#mic-panel')).toBeHidden();
+    const states = await page.evaluate(
+      () => (window as unknown as { micStates: string[] }).micStates,
+    );
+    expect(states.filter((state) => state !== 'running')).toEqual([]);
   });
 
   test('falls back to an AnalyserNode when AudioWorklet is unavailable', async ({ page }) => {

@@ -12,6 +12,9 @@ works offline, and the audio never leaves your device.
 - Automatic mode (finds the string you play) and manual mode (tap a string).
 - Reference tone for every string, A4 calibration from 430 to 450 Hz, letter or
   Do Re Mi note names, sharps or flats, adjustable tolerance and sensitivity.
+- Once the microphone has been allowed, later visits start listening without a
+  tap wherever the browser lets audio start by itself (an installed app, for
+  example). The microphone is closed whenever the app is not on screen.
 
 ## Run it locally
 

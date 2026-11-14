@@ -23,8 +23,9 @@ export class MicrophoneError extends Error {
  * - idle: not capturing; a user gesture is needed to start.
  * - starting: waiting for permission and for the audio graph.
  * - running: audio is flowing.
- * - interrupted: capture was started but the browser paused it (page in the
- *   background, screen locked, another app took the audio focus).
+ * - interrupted: capture was started but is on hold: the page is hidden, so
+ *   the microphone was closed, or the browser paused the audio (screen
+ *   locked, another app took the audio focus).
  */
 export type MicrophoneState = 'idle' | 'starting' | 'running' | 'interrupted';
 
@@ -76,6 +77,20 @@ function toMicrophoneError(error: unknown): MicrophoneError {
 }
 
 /**
+ * Whether the user already allowed the microphone for this site, so that it
+ * can be opened without making the browser ask. Never asks by itself.
+ */
+export async function microphoneAllowed(): Promise<boolean> {
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    return status.state === 'granted';
+  } catch {
+    // This browser cannot tell: leave it to the button.
+    return false;
+  }
+}
+
+/**
  * Microphone capture. The signal goes through a high-pass filter (to drop
  * DC offset and handling rumble) into an AudioWorklet that forwards raw
  * samples to the main thread. Browsers without AudioWorklet fall back to an
@@ -96,6 +111,8 @@ export class Microphone {
   private listeningToContext = false;
   private lastSamplesAt = 0;
   private recoveryAttempts = 0;
+  /** Between `suspend` and `resume` the microphone has to stay closed. */
+  private suspended = false;
 
   constructor(callbacks: MicrophoneCallbacks) {
     this.callbacks = callbacks;
@@ -121,6 +138,11 @@ export class Microphone {
       this.stream = await this.openStream();
       await resuming;
       await this.connect(audio, this.stream);
+      if (this.suspended) {
+        // The page was hidden while the microphone was being opened.
+        this.hold();
+        return;
+      }
       this.watch(audio, this.stream);
       this.lastSamplesAt = performance.now();
       this.setState(audio.state === 'running' ? 'running' : 'interrupted');
@@ -137,21 +159,24 @@ export class Microphone {
     this.setState('idle');
   }
 
-  /** Pauses audio processing while the page is hidden. */
+  /**
+   * Closes the microphone while the page is hidden, so that nothing listens
+   * in the background. `resume` opens it again.
+   */
   suspend(): void {
-    if (this.state !== 'running') return;
-    void getAudioContext()
-      .suspend()
-      .catch(() => undefined);
+    this.suspended = true;
+    if (this.state === 'running' || this.state === 'interrupted') this.hold();
   }
 
   /**
    * Brings capture back after the page returns to the foreground or the
-   * screen is unlocked. Reopens the microphone if the browser closed it.
+   * screen is unlocked, reopening the microphone that `suspend` (or the
+   * browser) closed.
    *
    * @returns Whether audio is flowing again.
    */
   async resume(): Promise<boolean> {
+    this.suspended = false;
     if (this.state === 'idle' || this.state === 'starting') return false;
     const track = this.stream?.getAudioTracks()[0];
     if (!track || track.readyState !== 'live') {
@@ -316,6 +341,15 @@ export class Microphone {
       // start() already reported the idle state.
     }
     this.recoveryAttempts = attempts;
+  }
+
+  /** Closes the microphone and stops the audio clock, ready to be resumed. */
+  private hold(): void {
+    this.release();
+    this.setState('interrupted');
+    void getAudioContext()
+      .suspend()
+      .catch(() => undefined);
   }
 
   private release(): void {

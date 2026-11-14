@@ -1,10 +1,11 @@
-import { getAudioContext } from '../audio/context';
+import { getAudioContext, resumeAudioContext } from '../audio/context';
 import { FrameBuffer } from '../audio/frame-buffer';
 import {
   Microphone,
   MicrophoneError,
   type MicrophoneErrorKind,
   type MicrophoneState,
+  microphoneAllowed,
 } from '../audio/microphone';
 import { ReferenceTone } from '../audio/reference-tone';
 import { ScreenWakeLock } from '../audio/wake-lock';
@@ -97,6 +98,7 @@ export class TunerApp {
   private detectionPaused = false;
   private dirty = true;
   private promptTimer: ReturnType<typeof setTimeout> | undefined;
+  private autoStartTried = false;
 
   private analysisCount = 0;
   private analysisRate = 0;
@@ -138,6 +140,7 @@ export class TunerApp {
     this.setMode(this.settings.mode);
     this.applyTuning();
     this.handleMicrophoneState(this.microphone.state);
+    void this.autoStart();
 
     const loop = (): void => {
       if (this.dirty) {
@@ -272,6 +275,26 @@ export class TunerApp {
     });
   }
 
+  /**
+   * Starts listening without a tap when the microphone was already allowed
+   * on an earlier visit. Browsers let audio start by itself only in some
+   * cases (an installed app, a site that is used often); in the others
+   * nothing happens here and the button stays.
+   */
+  private async autoStart(): Promise<void> {
+    // Never in a background tab: it is tried again when the page is shown.
+    if (this.autoStartTried || document.visibilityState !== 'visible') return;
+    this.autoStartTried = true;
+    if (!(await microphoneAllowed()) || !(await resumeAudioContext())) return;
+    // The user may have pressed the button in the meantime.
+    if (this.microphone.state !== 'idle') return;
+    try {
+      await this.microphone.start();
+    } catch {
+      // The button is still there.
+    }
+  }
+
   private setMicrophoneMessage(message: string): void {
     byId('mic-message').textContent = message;
   }
@@ -281,6 +304,9 @@ export class TunerApp {
     const button = byId<HTMLButtonElement>('mic-button');
     const label = byId('mic-button-label');
     const app = byId('app');
+    // The microphone is closed while the page is hidden and reopened when it
+    // comes back. That only takes a moment, so the button stays out of sight.
+    const reopening = state === 'starting' && app.dataset.mic === 'running';
 
     if (state === 'interrupted') {
       // Usually the page is in the background and capture comes back by
@@ -293,7 +319,7 @@ export class TunerApp {
         button.disabled = false;
         this.setMicrophoneMessage('The microphone was paused. Tap to resume.');
       }, INTERRUPTED_PROMPT_DELAY_MS);
-    } else {
+    } else if (!reopening) {
       app.dataset.mic = state;
       label.textContent = state === 'starting' ? 'Starting…' : 'Enable microphone';
       button.disabled = state === 'starting';
@@ -317,6 +343,7 @@ export class TunerApp {
       await this.microphone.resume();
       if (this.microphone.state === 'running') await this.wakeLock.reacquire();
       else this.handleMicrophoneState(this.microphone.state);
+      void this.autoStart();
     };
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {

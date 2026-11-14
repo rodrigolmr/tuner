@@ -5,14 +5,17 @@ import type { Tone } from './tones';
  * Browser options that replace the microphone with an audio file. Chrome
  * grants the permission without a prompt and loops the file as the input of
  * a fake capture device.
+ *
+ * @param extraArgs More command line switches for the browser.
  */
-export function fakeMicrophone(tone: Tone) {
+export function fakeMicrophone(tone: Tone, extraArgs: string[] = []) {
   return {
     launchOptions: {
       args: [
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
         `--use-file-for-fake-audio-capture=${tone.file}`,
+        ...extraArgs,
       ],
     },
   };

@@ -36,16 +36,31 @@ export interface TrackerReading {
  * detection, confidence check and smoothing.
  */
 export class PitchTracker {
-  readonly detector: PitchDetector;
+  readonly sampleRate: number;
   readonly gate: NoiseGate;
+  private currentDetector: PitchDetector;
   private readonly smoother = new PitchSmoother();
   private readonly levelSamples: number;
   private lastTimeMs: number | null = null;
 
   constructor(options: TrackerOptions) {
-    this.detector = new PitchDetector(options);
+    this.sampleRate = options.sampleRate;
+    this.currentDetector = new PitchDetector(options);
     this.gate = new NoiseGate(options.gateDb);
     this.levelSamples = Math.round(LEVEL_SECONDS * options.sampleRate);
+  }
+
+  get detector(): PitchDetector {
+    return this.currentDetector;
+  }
+
+  /**
+   * Switches to another frequency range (another instrument or tuning),
+   * keeping what was learned about the ambient noise.
+   */
+  setRange(minFreq: number, maxFreq: number): void {
+    this.currentDetector = new PitchDetector({ sampleRate: this.sampleRate, minFreq, maxFreq });
+    this.smoother.reset();
   }
 
   /** Number of samples each frame passed to `process` has to hold. */

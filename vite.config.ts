@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -45,7 +46,7 @@ const base = process.env.BASE_PATH ?? '/tuner/';
 
 const THEME_COLOR = '#0e1014';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base,
   define: {
     __APP_VERSION__: JSON.stringify(version),
@@ -55,6 +56,9 @@ export default defineConfig({
     sourcemap: true,
   },
   plugins: [
+    // `npm run dev:phone`: phones only allow the microphone over HTTPS, so the
+    // LAN dev server uses a self-signed certificate.
+    mode === 'phone' ? basicSsl() : null,
     contentSecurityPolicy(),
     VitePWA({
       registerType: 'prompt',
@@ -103,4 +107,4 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
   },
-});
+}));

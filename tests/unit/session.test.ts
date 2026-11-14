@@ -64,15 +64,70 @@ describe('TunerSession in automatic mode', () => {
     expect(session.view.tuned).toEqual([false, false, true, false, false, false]);
   });
 
-  it('restarts the count when the note leaves the tolerance or stops', () => {
+  it('shows the new check to whoever listens for it', () => {
+    const session = guitar();
+    const seen: boolean[][] = [];
+    session.onTuned = () => seen.push([...session.view.tuned]);
+    hold(session, hz('D3'), 0, 1200);
+    expect(seen).toEqual([[false, false, true, false, false, false]]);
+  });
+
+  it('keeps counting from one pluck of a string to the next', () => {
+    const session = guitar();
+    // Two short notes, as on a string that does not sustain.
+    expect(hold(session, hz('D3', 1), 0, 600).tuned[2]).toBe(false);
+    hold(session, null, 620, 300);
+    expect(hold(session, hz('D3', 1), 940, 300).tuned[2]).toBe(false);
+    expect(hold(session, hz('D3', 1), 1260, 200).tuned[2]).toBe(true);
+  });
+
+  it('does not let the sharp attack of a pluck undo the count', () => {
+    const session = guitar();
+    hold(session, hz('D3', 1), 0, 500);
+    hold(session, null, 520, 300);
+    hold(session, hz('D3', 9), 840, 200);
+    expect(hold(session, hz('D3', 1), 1060, 800).tuned[2]).toBe(true);
+  });
+
+  it('starts over when the string stays out of tune', () => {
     const session = guitar();
     hold(session, hz('D3', 1), 0, 700);
-    hold(session, hz('D3', 9), 720, 500);
-    expect(hold(session, hz('D3', 1), 1240, 700).tuned[2]).toBe(false);
+    hold(session, hz('D3', 9), 720, 800);
+    expect(hold(session, hz('D3', 1), 1540, 700).tuned[2]).toBe(false);
+    expect(hold(session, hz('D3', 1), 2260, 600).tuned[2]).toBe(true);
+  });
 
-    hold(session, null, 1960, 100);
-    expect(hold(session, hz('D3', 1), 2080, 700).tuned[2]).toBe(false);
-    expect(hold(session, hz('D3', 1), 2800, 400).tuned[2]).toBe(true);
+  it('starts over when another string is played', () => {
+    const session = guitar();
+    hold(session, hz('D3'), 0, 700);
+    hold(session, hz('G3'), 720, 300);
+    expect(hold(session, hz('D3'), 1040, 700).tuned[2]).toBe(false);
+  });
+
+  it('takes the check away when the string goes out of tune', () => {
+    const session = guitar();
+    const tunedEvents: number[] = [];
+    session.onTuned = (index) => tunedEvents.push(index);
+    hold(session, hz('D3'), 0, 1200);
+
+    // A short excursion is not enough...
+    expect(hold(session, hz('D3', -10), 1220, 300).tuned[2]).toBe(true);
+    // ...but a string that stays flat is no longer in tune.
+    const flat = hold(session, hz('D3', -10), 1540, 500);
+    expect(flat.direction).toBe('flat');
+    expect(flat.tuned[2]).toBe(false);
+
+    expect(hold(session, hz('D3'), 2060, 1400).tuned[2]).toBe(true);
+    expect(tunedEvents).toEqual([2, 2]);
+  });
+
+  it('keeps the check while other notes are played', () => {
+    const session = guitar();
+    hold(session, hz('D3'), 0, 1200);
+    // A fretted note next to the open string, then a melody on other strings.
+    hold(session, hz('D#3'), 1220, 2000);
+    hold(session, hz('F3', 20), 3240, 2000);
+    expect(session.view.tuned).toEqual([false, false, true, false, false, false]);
   });
 
   it('clears the checks when the tuning or the calibration changes', () => {
@@ -160,6 +215,13 @@ describe('TunerSession in manual mode', () => {
     expect(hold(session, hz('E4', -2), 0, 1200).tuned).toEqual(
       [false, false, false, false, false, true],
     );
+  });
+
+  it('keeps the check when another string is played by mistake', () => {
+    const session = guitar('manual');
+    session.selectString(5);
+    hold(session, hz('E4'), 0, 1200);
+    expect(hold(session, hz('B3'), 1220, 2000).tuned[5]).toBe(true);
   });
 });
 

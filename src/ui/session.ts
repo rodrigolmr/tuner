@@ -32,8 +32,18 @@ export interface SessionOptions {
 
 /** Time constant of the exponential filter applied to the cents, in ms. */
 const CENTS_TIME_CONSTANT_MS = 120;
-/** How long a string has to stay within tolerance to count as tuned, in ms. */
+/** How long a string has to spend within tolerance to count as tuned, in ms. */
 export const TUNED_HOLD_MS = 1000;
+/** How long it has to stay out of tolerance to lose that again, in ms. */
+const UNTUNED_HOLD_MS = 500;
+/**
+ * Only readings this close to the target, in cents, count against a string.
+ * Further away the sound is probably something else (a fretted note, another
+ * string in manual mode) and says nothing about how the string is tuned.
+ */
+const OUT_OF_TUNE_RANGE_CENTS = 50;
+/** Longest stretch of time a single reading can stand for, in ms. */
+const MAX_READING_MS = 100;
 /** In chromatic mode the note changes only this far from the current one, in cents. */
 const CHROMATIC_HYSTERESIS_CENTS = 60;
 
@@ -56,7 +66,9 @@ export class TunerSession {
   private autoIndex: number | null = null;
   private chromaticMidi: number | null = null;
   private target: number | null = null;
-  private inTuneSince: number | null = null;
+  private countedString: number | null = null;
+  private inTuneMs = 0;
+  private outOfTuneMs = 0;
   private lastTimeMs: number | null = null;
   private readonly centsFilter = new ExponentialFilter(CENTS_TIME_CONSTANT_MS);
   private current: TunerView;
@@ -83,6 +95,7 @@ export class TunerSession {
     this.strings = strings;
     this.tuned = strings.map(() => false);
     this.manualIndex = 0;
+    this.countedString = null;
     this.clearNote();
   }
 
@@ -102,6 +115,7 @@ export class TunerSession {
     if (a4 === this.a4) return;
     this.a4 = a4;
     this.tuned = this.strings.map(() => false);
+    this.countedString = null;
     this.clearNote();
   }
 
@@ -139,7 +153,6 @@ export class TunerSession {
     if (target !== this.target) {
       this.target = target;
       this.centsFilter.reset();
-      this.inTuneSince = null;
     }
 
     const elapsed = this.lastTimeMs === null ? 0 : timeMs - this.lastTimeMs;
@@ -149,22 +162,12 @@ export class TunerSession {
       elapsed,
     );
 
-    let direction: Direction;
-    if (Math.abs(cents) <= this.toleranceCents) {
-      direction = 'in-tune';
-      this.inTuneSince ??= timeMs;
-      if (
-        stringIndex !== null &&
-        !this.tuned[stringIndex] &&
-        timeMs - this.inTuneSince >= TUNED_HOLD_MS
-      ) {
-        this.tuned = this.tuned.map((value, i) => value || i === stringIndex);
-        this.onTuned(stringIndex);
-      }
-    } else {
-      direction = cents < 0 ? 'flat' : 'sharp';
-      this.inTuneSince = null;
-    }
+    const offBy = Math.abs(cents);
+    const direction: Direction =
+      offBy <= this.toleranceCents ? 'in-tune' : cents < 0 ? 'flat' : 'sharp';
+    const justTuned =
+      stringIndex !== null &&
+      this.countReading(stringIndex, offBy, Math.min(elapsed, MAX_READING_MS));
 
     this.current = {
       active: true,
@@ -175,7 +178,48 @@ export class TunerSession {
       direction,
       tuned: this.tuned,
     };
+    // Reported last, so that the listener already sees the new check in the view.
+    if (justTuned) this.onTuned(stringIndex!);
     return this.current;
+  }
+
+  /**
+   * Counts the time a string spends in and out of tune, and checks it off or
+   * takes the check away accordingly. Both counts carry over from one pluck
+   * to the next: a string whose notes die away quickly can still be checked
+   * off, and the sharp attack of a pluck does not undo the rest of the note.
+   *
+   * @param offBy Distance from the target in cents, without its sign.
+   * @returns Whether the string has just been checked off.
+   */
+  private countReading(stringIndex: number, offBy: number, elapsedMs: number): boolean {
+    if (stringIndex !== this.countedString) {
+      this.countedString = stringIndex;
+      this.inTuneMs = 0;
+      this.outOfTuneMs = 0;
+    }
+
+    if (offBy <= this.toleranceCents) {
+      this.inTuneMs += elapsedMs;
+      this.outOfTuneMs = 0;
+      if (this.tuned[stringIndex] || this.inTuneMs < TUNED_HOLD_MS) return false;
+      this.setTuned(stringIndex, true);
+      return true;
+    }
+
+    if (offBy <= OUT_OF_TUNE_RANGE_CENTS) {
+      this.outOfTuneMs += elapsedMs;
+      if (this.outOfTuneMs >= UNTUNED_HOLD_MS) {
+        this.inTuneMs = 0;
+        if (this.tuned[stringIndex]) this.setTuned(stringIndex, false);
+      }
+    }
+    return false;
+  }
+
+  /** Views keep the list they were built with, so a change makes a new one. */
+  private setTuned(stringIndex: number, tuned: boolean): void {
+    this.tuned = this.tuned.map((value, i) => (i === stringIndex ? tuned : value));
   }
 
   private chromaticTarget(frequency: number): number {
@@ -191,7 +235,6 @@ export class TunerSession {
     this.autoIndex = null;
     this.chromaticMidi = null;
     this.target = null;
-    this.inTuneSince = null;
     this.lastTimeMs = null;
     this.centsFilter.reset();
     this.current = this.idleView();

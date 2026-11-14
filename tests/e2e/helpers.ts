@@ -28,6 +28,14 @@ export async function shownNumber(page: Page, testId: string): Promise<number> {
   return Number.parseFloat(text.replace('−', '-'));
 }
 
+/**
+ * Waits for the one-time "Ready to work offline" notice of a first visit, so
+ * that it cannot show up later and replace the notice a test is waiting for.
+ */
+export async function waitUntilCached(page: Page): Promise<void> {
+  await expect(page.locator('#toast')).toHaveText('Ready to work offline');
+}
+
 export async function enableMicrophone(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Enable microphone' }).click();
 }

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
-import { enableMicrophone, expectReading, fakeMicrophone } from './helpers';
+import { enableMicrophone, expectReading, fakeMicrophone, waitUntilCached } from './helpers';
 import { TONES } from './tones';
 
 test.use(fakeMicrophone(TONES.a2));
@@ -71,6 +71,7 @@ test.describe('on a desktop', () => {
 
   test('shares through a dialog with a QR code and a link to copy', async ({ page, baseURL }) => {
     await page.goto('./');
+    await waitUntilCached(page);
     await expect(page.locator('#phone-card')).toBeVisible();
     await expect(page.locator('#phone-qr svg')).toBeVisible();
 
@@ -125,6 +126,7 @@ test.describe('on a phone', () => {
       Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
     });
     await page.goto('./');
+    await waitUntilCached(page);
     await page.getByRole('button', { name: 'Share', exact: true }).tap();
     await expect(page.locator('#toast')).toHaveText('Link copied');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(baseURL);

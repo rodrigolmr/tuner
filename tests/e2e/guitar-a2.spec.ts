@@ -112,7 +112,8 @@ test.describe('guitar with an A2 that is in tune', () => {
     await expect(output).toContainText(/raw frequency : 1(09\.9|10\.0)\d Hz/);
     await expect(output).toContainText(/confidence    : (0\.9\d\d|1\.000)/);
     await expect(output).toContainText(/rms           : -\d+\.\d dBFS/);
-    await expect(output).toContainText('sample rate   : 48000 Hz');
+    // Whatever rate the machine's audio output runs at: the app must not assume one.
+    await expect(output).toContainText(/sample rate   : (44100|48000) Hz/);
     await expect(output).toContainText('capture=worklet');
     await expect(output).toContainText('context=running');
   });

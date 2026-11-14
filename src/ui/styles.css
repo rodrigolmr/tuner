@@ -272,12 +272,17 @@ select:hover {
   opacity: 1;
 }
 
-/* As wide as the card allows, and shorter when the card is short. */
+/*
+ * As wide as the card allows, and shorter when the card is short. The height
+ * is spelled out from the width of the screen (the page and card paddings
+ * take 58px) rather than left to aspect-ratio, which not every browser
+ * applies to a flex item that is also a size container.
+ */
 .meter-slot {
   flex: 0 1 auto;
   width: min(100%, 440px);
+  height: calc(min(100vw - 58px, 440px) * 182 / 320);
   min-height: 0;
-  aspect-ratio: 320 / 182;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -286,6 +291,7 @@ select:hover {
 
 .meter {
   position: relative;
+  flex: none;
   width: 100%;
   max-height: 100%;
   aspect-ratio: 320 / 182;
@@ -293,16 +299,25 @@ select:hover {
   container-type: inline-size;
 }
 
-/* The largest dial that fits the slot both ways. */
+/*
+ * The largest dial that fits the slot both ways. The floor on the height
+ * keeps a usable dial even if a browser reports no height for the slot.
+ */
 @supports (width: 1cqh) {
   .meter {
-    width: min(100cqw, 100cqh * 320 / 182);
+    --room: max(100cqh, 120px);
+
+    width: min(100cqw, var(--room) * 320 / 182);
+    height: min(var(--room), 100cqw * 182 / 320);
     max-height: none;
+    aspect-ratio: auto;
   }
 }
 
+/* Laid over the box, so its size never depends on how the box got its height. */
 .dial {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   overflow: visible;

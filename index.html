@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Pluck Tuner</title>
+    <meta
+      name="description"
+      content="A precise tuner for guitar, bass, ukulele, cavaquinho, mandolin and viola caipira. Works offline; audio never leaves your device."
+    />
+    <meta name="theme-color" content="#0e1014" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pluck" />
+    <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon-180.png" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="top-bar">
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M5 21a11 11 0 0 1 22 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M16 23V10" fill="none" stroke="var(--good)" stroke-width="2.6" stroke-linecap="round" />
+            <circle cx="16" cy="23" r="2.6" fill="var(--good)" />
+          </svg>
+          <h1>Pluck</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="share-button" type="button" aria-label="Share">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="12" r="2.6" /><circle cx="18" cy="19" r="2.6" />
+              <path d="M8.3 10.7l7.4-4.3M8.3 13.3l7.4 4.3" />
+            </svg>
+          </button>
+          <button class="icon-button" id="settings-button" type="button" aria-label="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+              <circle cx="16" cy="7" r="2.2" /><circle cx="8" cy="17" r="2.2" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="selectors" aria-label="Instrument and tuning">
+        <div class="field">
+          <label class="field-label" for="instrument-select">Instrument</label>
+          <select id="instrument-select"></select>
+        </div>
+        <div class="field" id="tuning-field">
+          <label class="field-label" for="tuning-select">Tuning</label>
+          <select id="tuning-select"></select>
+        </div>
+      </section>
+
+      <main class="stage">
+        <div class="gauge" id="gauge" data-state="idle">
+          <svg class="dial" id="dial" viewBox="0 0 320 180" role="img" aria-label="Tuning meter from minus 50 to plus 50 cents"></svg>
+          <div class="readout">
+            <div class="note" id="note" data-testid="note" aria-live="off">
+              <span class="note-name" id="note-name">–</span><span class="note-marks"><span class="note-accidental" id="note-accidental"></span><span class="note-octave" id="note-octave"></span></span>
+            </div>
+            <div class="hint" id="hint" data-testid="hint">&nbsp;</div>
+            <div class="numbers">
+              <span id="cents" data-testid="cents">&nbsp;</span>
+              <span id="hertz" data-testid="hertz">&nbsp;</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mic-panel" id="mic-panel">
+          <button class="primary-button" id="mic-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+            </svg>
+            <span id="mic-button-label">Enable microphone</span>
+          </button>
+          <p class="mic-message" id="mic-message" role="alert"></p>
+        </div>
+      </main>
+
+      <section class="strings-section" id="strings-section" aria-label="Strings">
+        <div class="strings-header">
+          <div class="segmented" id="mode-toggle" role="group" aria-label="String selection mode">
+            <button type="button" data-mode="auto" aria-pressed="true">Auto</button>
+            <button type="button" data-mode="manual" aria-pressed="false">Manual</button>
+          </div>
+          <p class="mode-help" id="mode-help"></p>
+        </div>
+        <div class="strings" id="strings"></div>
+        <p class="strings-hint" id="strings-hint"></p>
+      </section>
+
+      <footer class="footnote">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="10.5" width="14" height="9.5" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+        </svg>
+        Audio is processed on your device and never leaves it.
+      </footer>
+    </div>
+
+    <aside class="phone-card" id="phone-card" hidden>
+      <div class="qr" id="phone-qr"></div>
+      <p>Scan to open Pluck on your phone.</p>
+    </aside>
+
+    <dialog class="sheet" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="sheet-body">
+        <header class="sheet-header">
+          <h2 id="settings-title">Settings</h2>
+          <button class="icon-button" type="submit" aria-label="Close settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+
+        <div class="setting">
+          <div class="setting-head">
+            <label for="a4-range">Reference pitch (A4)</label>
+            <output id="a4-value" for="a4-range">440 Hz</output>
+          </div>
+          <div class="stepper">
+            <button type="button" id="a4-down" aria-label="Lower reference pitch">−</button>
+            <input id="a4-range" type="range" min="430" max="450" step="1" value="440" />
+            <button type="button" id="a4-up" aria-label="Raise reference pitch">+</button>
+          </div>
+          <button type="button" class="link-button" id="a4-reset">Reset to 440 Hz</button>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span id="notation-label">Note names</span></div>
+          <div class="segmented wide" id="notation-toggle" role="group" aria-labelledby="notation-label">
+            <button type="button" data-value="letters">C D E</button>
+            <button type="button" data-value="solfege">Do Re Mi</button>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span id="accidental-label">Accidentals</span></div>
+          <div class="segmented wide" id="accidental-toggle" role="group" aria-labelledby="accidental-label">
+            <button type="button" data-value="sharp">Sharps (♯)</button>
+            <button type="button" data-value="flat">Flats (♭)</button>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head">
+            <label for="tolerance-range">In-tune tolerance</label>
+            <output id="tolerance-value" for="tolerance-range">±3 cents</output>
+          </div>
+          <input id="tolerance-range" type="range" min="1" max="10" step="1" value="3" />
+        </div>
+
+        <div class="setting">
+          <div class="setting-head">
+            <label for="sensitivity-range">Microphone sensitivity</label>
+            <output id="sensitivity-value" for="sensitivity-range">Medium</output>
+          </div>
+          <input id="sensitivity-range" type="range" min="1" max="5" step="1" value="3" />
+          <p class="setting-help">Raise it if quiet notes are not picked up; lower it in a noisy room.</p>
+        </div>
+
+        <p class="about" id="about"></p>
+      </form>
+    </dialog>
+
+    <dialog class="sheet" id="share-dialog" aria-labelledby="share-title">
+      <form method="dialog" class="sheet-body">
+        <header class="sheet-header">
+          <h2 id="share-title">Share Pluck</h2>
+          <button class="icon-button" type="submit" aria-label="Close share">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <div class="qr large" id="share-qr"></div>
+        <p class="share-caption">Scan with a phone camera, or send the link.</p>
+        <p class="share-url" id="share-url"></p>
+        <div class="share-actions">
+          <button type="button" class="primary-button compact" id="copy-link-button">Copy link</button>
+          <button type="button" class="secondary-button" id="native-share-button" hidden>Share…</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="update-banner" id="update-banner" role="status" hidden>
+      <span>A new version is available.</span>
+      <button type="button" id="update-button">Update</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <section class="debug-panel" id="debug-panel" hidden>
+      <header>
+        <strong>Diagnostics</strong>
+        <button type="button" id="debug-copy">Copy</button>
+      </header>
+      <pre id="debug-output"></pre>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

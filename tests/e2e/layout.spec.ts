@@ -61,6 +61,16 @@ async function snapshot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: path.join(directory, `layout-${browser}-${name}.png`) });
 }
 
+/**
+ * Opens the app and waits for its first frame. The app draws when the browser
+ * asks for a frame, which a headless WebKit may do well after the page has
+ * loaded; until then anything a test writes to the screen would be drawn over.
+ */
+async function open(page: Page): Promise<void> {
+  await page.goto('./');
+  await expect(page.locator('#tuned-count-text')).toHaveText(/in tune$/);
+}
+
 interface Reading {
   state: 'flat' | 'sharp' | 'in-tune';
   name: string;
@@ -107,7 +117,7 @@ for (const [name, viewport] of Object.entries({ PHONE, SMALL_PHONE, SHORT_PHONE 
     test.use({ viewport });
 
     test('everything fits before the microphone is on', async ({ page }) => {
-      await page.goto('./');
+      await open(page);
       await expect(page.locator('.dial-segment')).toHaveCount(51);
       expect(await overflow(page)).toEqual({ sideways: 0, downwards: 0 });
 
@@ -138,7 +148,7 @@ for (const [name, viewport] of Object.entries({ PHONE, SMALL_PHONE, SHORT_PHONE 
     });
 
     test('the note sits inside the dial while tuning', async ({ page }) => {
-      await page.goto('./');
+      await open(page);
       await showReading(page, { state: 'sharp', name: 'E', accidental: '', octave: '2', hint: 'Loosen' });
       expect(await overflow(page)).toEqual({ sideways: 0, downwards: 0 });
 
@@ -170,6 +180,8 @@ for (const [name, viewport] of Object.entries({ PHONE, SMALL_PHONE, SHORT_PHONE 
       const numbers = await box(page, '.numbers');
       expect(numbers.top).toBeGreaterThanOrEqual(hint.bottom - 1);
       expectInside(numbers, card, 'numbers');
+      // Still the reading written above: the app has not drawn over it.
+      await expect(page.locator('#note')).toHaveText('E2');
       await snapshot(page, `${name}-tuning`);
     });
   });
@@ -182,7 +194,7 @@ test.describe('on a phone', () => {
     page,
   }) => {
     await page.setViewportSize(SHORT_PHONE);
-    await page.goto('./');
+    await open(page);
     const meter = await expectDialDrawn(page);
     const slot = await box(page, '.meter-slot');
     // The height is what limits it here, so it does not use the whole width.
@@ -197,7 +209,7 @@ test.describe('on a phone', () => {
   });
 
   test('long note names get smaller type', async ({ page }) => {
-    await page.goto('./');
+    await open(page);
     await showReading(page, { state: 'in-tune', name: 'Sol', accidental: '♯', octave: '4', hint: 'In tune' });
     const meter = await expectDialDrawn(page);
     const fontSize = await page
@@ -214,11 +226,12 @@ test.describe('on a phone', () => {
     expect(Math.hypot(marks.right - centreX(meter), centreY - marks.top)).toBeLessThan(
       INNER_RADIUS * meter.width,
     );
+    await expect(page.locator('#note')).toHaveText('Sol♯4');
     await snapshot(page, 'solfege-in-tune');
   });
 
   test('every instrument fits the screen', async ({ page }) => {
-    await page.goto('./');
+    await open(page);
     const expectedStrings: Record<string, number> = {
       guitar: 6,
       'bass-4': 4,
@@ -249,7 +262,7 @@ test.describe('on a phone', () => {
   });
 
   test('a string shows that it is being held in tune', async ({ page }) => {
-    await page.goto('./');
+    await open(page);
     await showReading(page, { state: 'in-tune', name: 'A', accidental: '', octave: '2', hint: 'In tune' });
     const before = await box(page, '.string:nth-child(2)');
     await page.locator('.string:nth-child(2)').evaluate((element) => {
@@ -270,11 +283,12 @@ test.describe('on a phone', () => {
     expect(ring.content).not.toBe('none');
     expect(ring.opacity).toBe('1');
     await expect(page.locator('.string:nth-child(3) .string-check')).toBeVisible();
+    await expect(page.locator('#gauge')).toHaveAttribute('data-state', 'in-tune');
     await snapshot(page, 'strings-held');
   });
 
   test('the settings open as a sheet within the screen', async ({ page }) => {
-    await page.goto('./');
+    await open(page);
     await page.getByRole('button', { name: 'Settings' }).click();
     const dialog = page.getByRole('dialog', { name: 'Settings' });
     await expect(dialog).toBeVisible();

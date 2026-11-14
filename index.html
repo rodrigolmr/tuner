@@ -83,6 +83,12 @@
               <span id="hertz" data-testid="hertz">&nbsp;</span>
             </div>
             <p class="mic-message" id="mic-message" role="alert"></p>
+            <p class="privacy">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10.5" width="14" height="9.5" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+              </svg>
+              Audio is processed on your device and never leaves it.
+            </p>
           </div>
         </div>
       </main>
@@ -90,21 +96,17 @@
       <section class="strings-section" id="strings-section" aria-label="Strings">
         <div class="strings-header">
           <div class="segmented" id="mode-toggle" role="group" aria-label="String selection mode">
-            <button type="button" data-mode="auto" aria-pressed="true">Auto</button>
-            <button type="button" data-mode="manual" aria-pressed="false">Manual</button>
+            <button type="button" data-mode="auto" aria-pressed="true" title="Finds the string you play">Auto</button>
+            <button type="button" data-mode="manual" aria-pressed="false" title="Tap a string to tune against it">Manual</button>
           </div>
-          <p class="mode-help" id="mode-help"></p>
+          <p class="tuned-count" id="tuned-count">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <span id="tuned-count-text"></span>
+          </p>
         </div>
         <div class="strings" id="strings"></div>
         <p class="strings-hint" id="strings-hint"></p>
       </section>
-
-      <footer class="footnote">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="5" y="10.5" width="14" height="9.5" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
-        </svg>
-        Audio is processed on your device and never leaves it.
-      </footer>
     </div>
 
     <aside class="phone-card" id="phone-card" hidden>

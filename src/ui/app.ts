@@ -18,6 +18,8 @@ import {
   detectionRange,
   findInstrument,
   findTuning,
+  stringGauges,
+  stringNumber,
 } from '../music/tunings';
 import { PitchTracker, type TrackerReading } from '../pitch/tracker';
 import { formatDebug, isDebugEnabled } from './debug';
@@ -53,11 +55,6 @@ const MICROPHONE_MESSAGES: Record<MicrophoneErrorKind, string> = {
   insecure: 'The microphone only works over a secure (HTTPS) connection.',
   unsupported: 'This browser does not support microphone access.',
   unknown: 'The microphone could not be started. Please try again.',
-};
-
-const MODE_HELP: Record<TunerMode, string> = {
-  auto: 'Finds the string you play.',
-  manual: 'Tap a string to tune against it.',
 };
 
 function formatCents(cents: number): string {
@@ -213,9 +210,15 @@ export class TunerApp {
   }
 
   private relabelStrings(): void {
+    const { stringsPerCourse } = this.instrument;
+    const gauges = stringGauges(this.strings);
     this.stringList.setStrings(
-      this.strings.map((midi) => noteLabel(midi, this.settings)),
-      this.instrument.stringsPerCourse,
+      this.strings.map((midi, index) => ({
+        label: noteLabel(midi, this.settings),
+        number: stringNumber(index, this.strings.length, stringsPerCourse),
+        gauge: gauges[index] ?? 0.5,
+      })),
+      stringsPerCourse,
     );
   }
 
@@ -223,7 +226,6 @@ export class TunerApp {
     this.persist({ mode });
     this.session.setMode(mode);
     this.pressMode(mode);
-    byId('mode-help').textContent = MODE_HELP[mode];
     this.dirty = true;
   }
 
@@ -497,7 +499,22 @@ export class TunerApp {
       tuned: view.tuned,
       playingIndex: this.playingIndex,
       inTune: view.direction === 'in-tune',
+      holdProgress: view.holdProgress,
     });
+    this.showTunedCount(view.tuned);
+  }
+
+  private tunedCountText = '';
+
+  /** Says how many strings are checked off, e.g. "2 of 6 in tune". */
+  private showTunedCount(tuned: readonly boolean[]): void {
+    const count = tuned.filter(Boolean).length;
+    const complete = tuned.length > 0 && count === tuned.length;
+    const text = complete ? 'All in tune' : `${count} of ${tuned.length} in tune`;
+    if (text === this.tunedCountText) return;
+    this.tunedCountText = text;
+    byId('tuned-count-text').textContent = text;
+    byId('tuned-count').toggleAttribute('data-complete', complete);
   }
 
   private hintFor(view: TunerView): string {

@@ -7,6 +7,15 @@ export interface StringListCallbacks {
   onPlay(index: number): void;
 }
 
+/** What the list shows for one string of the tuning. */
+export interface StringInfo {
+  label: NoteLabel;
+  /** Number of the string (or of its course), as musicians count them. */
+  number: number;
+  /** Relative thickness, from 0 for the thinnest string to 1 for the thickest. */
+  gauge: number;
+}
+
 export interface StringListState {
   /** String being measured right now, if any. */
   activeIndex: number | null;
@@ -17,6 +26,8 @@ export interface StringListState {
   playingIndex: number | null;
   /** Whether the active string is within tolerance. */
   inTune: boolean;
+  /** How much of the in-tune hold the active string has completed, from 0 to 1. */
+  holdProgress: number;
 }
 
 const CHECK_ICON =
@@ -30,7 +41,12 @@ interface StringElements {
   root: HTMLElement;
   select: HTMLButtonElement;
   tone: HTMLButtonElement;
-  label: string;
+  /** Spoken name, e.g. "6, E2". */
+  name: string;
+  /** Note alone, e.g. "E2". */
+  note: string;
+  /** Last value written to the --progress property. */
+  progress: string;
 }
 
 function flag(element: HTMLElement, name: string, on: boolean): void {
@@ -50,32 +66,39 @@ export class StringList {
   /**
    * Rebuilds the list for a tuning.
    *
-   * @param labels Note label of every string, lowest course first.
+   * @param strings Every string of the tuning, lowest course first.
    * @param stringsPerCourse Strings stacked in each column (2 for paired courses).
    */
-  setStrings(labels: readonly NoteLabel[], stringsPerCourse: number): void {
-    const columns = Math.max(1, Math.ceil(labels.length / stringsPerCourse));
+  setStrings(strings: readonly StringInfo[], stringsPerCourse: number): void {
+    const columns = Math.max(1, Math.ceil(strings.length / stringsPerCourse));
     this.container.style.setProperty('--columns', String(columns));
     this.container.style.setProperty('--rows', String(stringsPerCourse));
 
-    this.items = labels.map((label, index) => {
+    this.items = strings.map(({ label, number, gauge }, index) => {
       const root = document.createElement('div');
       root.className = 'string';
+      root.style.setProperty('--gauge', gauge.toFixed(3));
 
       const select = document.createElement('button');
       select.type = 'button';
       select.className = 'string-select';
       select.dataset.testid = `string-${index}`;
+      const ordinal = document.createElement('span');
+      ordinal.className = 'string-number';
+      ordinal.textContent = String(number);
       const note = document.createElement('span');
       note.className = 'string-note';
       note.textContent = `${label.base}${label.accidental}`;
       const octave = document.createElement('sub');
       octave.textContent = String(label.octave);
       note.append(octave);
+      // A dash as thick as the string is, next to the others.
+      const thickness = document.createElement('span');
+      thickness.className = 'string-gauge';
       const check = document.createElement('span');
       check.className = 'string-check';
       check.innerHTML = CHECK_ICON;
-      select.append(note, check);
+      select.append(ordinal, note, thickness, check);
       select.addEventListener('click', () => this.callbacks.onSelect(index));
 
       const tone = document.createElement('button');
@@ -85,7 +108,7 @@ export class StringList {
       tone.addEventListener('click', () => this.callbacks.onPlay(index));
 
       root.append(select, tone);
-      return { root, select, tone, label: label.text };
+      return { root, select, tone, name: `${number}, ${label.text}`, note: label.text, progress: '' };
     });
     this.container.replaceChildren(...this.items.map((item) => item.root));
   }
@@ -100,7 +123,15 @@ export class StringList {
       flag(item.root, 'tuned', tuned);
       flag(item.root, 'selected', state.selectedIndex === index);
 
-      const description = `${item.label}${tuned ? ', in tune' : ''}`;
+      // The border fills up while the string is held in tune, and stays full once checked.
+      const held = active && state.inTune ? (tuned ? 1 : state.holdProgress) : 0;
+      const progress = held.toFixed(3);
+      if (progress !== item.progress) {
+        item.progress = progress;
+        item.root.style.setProperty('--progress', progress);
+      }
+
+      const description = `${item.name}${tuned ? ', in tune' : ''}`;
       item.select.setAttribute('aria-label', `Tune string ${description}`);
       item.select.setAttribute('aria-pressed', String(state.selectedIndex === index));
 
@@ -110,7 +141,7 @@ export class StringList {
       }
       item.tone.setAttribute(
         'aria-label',
-        playing ? `Stop the ${item.label} reference tone` : `Play the ${item.label} reference tone`,
+        playing ? `Stop the ${item.note} reference tone` : `Play the ${item.note} reference tone`,
       );
     });
   }

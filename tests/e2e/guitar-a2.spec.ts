@@ -21,6 +21,8 @@ test.describe('guitar with an A2 that is in tune', () => {
     await expect(page).toHaveTitle('Pluck Tuner');
     await expect(page.getByTestId('note')).toHaveText('–');
 
+    await expect(page.locator('#tuned-count')).toHaveText('0 of 6 in tune');
+
     await enableMicrophone(page);
     await expectReading(page, { note: 'A2', cents: 0, hertz: 110, hint: 'In tune' });
     await expect(page.locator('#gauge')).toHaveAttribute('data-state', 'in-tune');
@@ -30,6 +32,8 @@ test.describe('guitar with an A2 that is in tune', () => {
     await expect(string).toHaveAttribute('data-active', 'true');
     await expect(string).toHaveAttribute('data-tuned', 'true');
     await expect(page.locator('.string[data-tuned]')).toHaveCount(1);
+    await expect(page.locator('#tuned-count')).toHaveText('1 of 6 in tune');
+    await expect(page.getByTestId('string-1')).toHaveAccessibleName('Tune string 5, A2, in tune');
 
     // Nothing leaves the device: every request went to the app's own origin.
     const origin = new URL(page.url()).origin;

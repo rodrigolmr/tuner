@@ -13,6 +13,8 @@ import {
   detectionRange,
   findInstrument,
   findTuning,
+  stringGauges,
+  stringNumber,
 } from '../../src/music/tunings';
 
 describe('frequency <-> note conversion', () => {
@@ -162,6 +164,35 @@ describe('instruments and tunings', () => {
     expect(findInstrument('does-not-exist').id).toBe('guitar');
     expect(findTuning(findInstrument('guitar'), 'does-not-exist')!.id).toBe('standard');
     expect(findTuning(findInstrument(CHROMATIC_ID), 'standard')).toBeNull();
+  });
+
+  it('numbers the strings from the highest course down', () => {
+    const numbers = (count: number, perCourse: number) =>
+      Array.from({ length: count }, (_, index) => stringNumber(index, count, perCourse));
+    // The low E of a guitar is its sixth string.
+    expect(numbers(6, 1)).toEqual([6, 5, 4, 3, 2, 1]);
+    expect(numbers(4, 1)).toEqual([4, 3, 2, 1]);
+    // Both strings of a pair carry the number of the pair.
+    expect(numbers(10, 2)).toEqual([5, 5, 4, 4, 3, 3, 2, 2, 1, 1]);
+  });
+
+  it('makes lower strings thicker', () => {
+    const guitar = stringGauges(findTuning(findInstrument('guitar'), 'standard')!.strings);
+    expect(guitar[0]).toBe(1);
+    expect(guitar[5]).toBe(0);
+    expect([...guitar].sort((a, b) => b - a)).toEqual(guitar);
+
+    // The high G of a ukulele is thinner than the C next to it.
+    const ukulele = stringGauges(findTuning(findInstrument('ukulele'), 'standard')!.strings);
+    expect(ukulele[0]!).toBeLessThan(ukulele[1]!);
+    expect(ukulele[1]).toBe(1);
+
+    // In an octave pair the low string is the thick one.
+    const viola = stringGauges(findTuning(findInstrument('viola-caipira'), 'cebolao-d')!.strings);
+    expect(viola[0]!).toBeGreaterThan(viola[1]!);
+    expect(viola[8]).toBe(viola[9]);
+
+    expect(stringGauges([60, 60])).toEqual([0.5, 0.5]);
   });
 
   it('derives the detection range from the strings', () => {

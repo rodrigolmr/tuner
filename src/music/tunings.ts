@@ -118,6 +118,28 @@ export function findTuning(instrument: Instrument, id: string): Tuning | null {
   return instrument.tunings.find((t) => t.id === id) ?? instrument.tunings[0] ?? null;
 }
 
+/**
+ * Number musicians give a string: 1 is the course furthest from the lowest
+ * one, so the low E of a guitar is string 6. Both strings of a pair share
+ * the number of their course.
+ *
+ * @param index Position in the tuning, lowest course first.
+ */
+export function stringNumber(index: number, stringCount: number, stringsPerCourse: number): number {
+  const courses = Math.ceil(stringCount / stringsPerCourse);
+  return courses - Math.floor(index / stringsPerCourse);
+}
+
+/**
+ * Relative thickness of every string, from 0 for the highest note to 1 for
+ * the lowest: on an instrument the lower a string sounds, the thicker it is.
+ */
+export function stringGauges(strings: readonly number[]): number[] {
+  const lowest = Math.min(...strings);
+  const span = Math.max(...strings) - lowest;
+  return strings.map((midi) => (span === 0 ? 0.5 : 1 - (midi - lowest) / span));
+}
+
 export interface FrequencyRange {
   minFreq: number;
   maxFreq: number;

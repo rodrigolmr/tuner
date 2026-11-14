@@ -18,6 +18,11 @@ export interface TunerView {
   /** Smoothed pitch in Hz. */
   frequency: number | null;
   direction: Direction | null;
+  /**
+   * How much of the in-tune hold the measured string has completed, from 0
+   * to 1; 1 once it is checked off.
+   */
+  holdProgress: number;
   /** Strings that were held in tune long enough to be checked off. */
   tuned: readonly boolean[];
 }
@@ -176,6 +181,7 @@ export class TunerSession {
       cents,
       frequency,
       direction,
+      holdProgress: stringIndex === null ? 0 : this.holdProgress(stringIndex),
       tuned: this.tuned,
     };
     // Reported last, so that the listener already sees the new check in the view.
@@ -217,6 +223,11 @@ export class TunerSession {
     return false;
   }
 
+  private holdProgress(stringIndex: number): number {
+    if (this.tuned[stringIndex]) return 1;
+    return Math.min(1, this.inTuneMs / TUNED_HOLD_MS);
+  }
+
   /** Views keep the list they were built with, so a change makes a new one. */
   private setTuned(stringIndex: number, tuned: boolean): void {
     this.tuned = this.tuned.map((value, i) => (i === stringIndex ? tuned : value));
@@ -250,6 +261,7 @@ export class TunerSession {
       cents: null,
       frequency: null,
       direction: null,
+      holdProgress: 0,
       tuned: this.tuned,
     };
   }

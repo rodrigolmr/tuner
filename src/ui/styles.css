@@ -210,7 +210,7 @@ select:hover {
 .stage {
   position: relative;
   flex: 1;
-  min-height: 250px;
+  min-height: 220px;
 }
 
 /*
@@ -670,6 +670,38 @@ select:hover {
   display: none;
 }
 
+/*
+ * Shown under the microphone button, where the question of who hears the
+ * audio comes up, and gone once the tuner is running.
+ */
+.privacy {
+  order: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.76rem;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.privacy svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.app[data-mic='running'] .privacy {
+  display: none;
+}
+
+/* Keeps the card the same height with the note above the hint line. */
+.app:not([data-mic='running']) .hint {
+  min-height: 24px;
+}
+
 /* ---- Buttons ------------------------------------------------------------ */
 
 .primary-button {
@@ -704,15 +736,28 @@ select:hover {
 
 /* ---- Strings ------------------------------------------------------------ */
 
+/* A card with the same finish as the meter above it. */
 .strings-section {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  background: linear-gradient(180deg, #181c25 0%, #11141a 100%);
+}
+
+/* The chromatic mode has no strings: only its one line of guidance is left. */
+.strings-section[data-chromatic='true'] {
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
 .strings-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -721,7 +766,34 @@ select:hover {
   display: none;
 }
 
-.mode-help,
+.tuned-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 4px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: color 200ms linear;
+}
+
+.tuned-count svg {
+  display: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.8;
+}
+
+.tuned-count[data-complete] {
+  color: var(--good);
+  font-weight: 650;
+}
+
+.tuned-count[data-complete] svg {
+  display: block;
+}
+
 .strings-hint,
 .setting-help {
   margin: 0;
@@ -731,6 +803,7 @@ select:hover {
 
 .strings-hint {
   text-align: center;
+  text-wrap: balance;
 }
 
 .strings-hint:empty {
@@ -781,13 +854,16 @@ select:hover {
 }
 
 .string {
+  /* Thickness of the string, 0 to 1, and how far along the in-tune hold is. */
+  --gauge: 0.5;
+  --progress: 0;
+
   position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
-  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
   transition:
     border-color 120ms linear,
     box-shadow 120ms linear;
@@ -798,6 +874,7 @@ select:hover {
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: var(--accent);
   opacity: 0;
   pointer-events: none;
@@ -832,23 +909,75 @@ select:hover {
   background: var(--good);
 }
 
+/*
+ * While a string is held in tune its border fills up clockwise, and the
+ * check appears when the ring closes. The ring is a conic gradient with its
+ * middle masked out; without mask support the border is simply green.
+ */
+@supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  .string[data-in-tune] {
+    border-color: #1f5c40;
+    box-shadow:
+      0 0 0 1px #1f5c40,
+      0 8px 20px -10px var(--good);
+  }
+
+  .string::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    padding: 2px;
+    border-radius: 15px;
+    background: conic-gradient(var(--good) calc(var(--progress) * 1turn), transparent 0);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .string[data-in-tune]::after {
+    opacity: 1;
+  }
+}
+
 .string-select,
 .string-tone {
   position: relative;
   border: 0;
   background: transparent;
-  display: grid;
-  place-items: center;
 }
 
 .string-select {
-  min-height: 52px;
-  padding: 9px 2px 5px;
+  min-height: 56px;
+  padding: 15px 2px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 13px 13px 0 0;
+}
+
+.string-number {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  color: var(--faint);
+  font-size: 0.66rem;
+  font-weight: 650;
+  line-height: 1;
 }
 
 .string-note {
   font-size: 1.18rem;
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -857,6 +986,23 @@ select:hover {
   font-weight: 600;
   color: var(--muted);
   margin-left: 1px;
+}
+
+/* A dash as thick as the string: the low strings are the heavy ones. */
+.string-gauge {
+  width: 20px;
+  height: calc(1.5px + var(--gauge) * 3.5px);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #a7b0c2 0%, #666f83 100%);
+  transition: background-color 120ms linear;
+}
+
+.string[data-active] .string-gauge {
+  background: var(--accent);
+}
+
+.string[data-in-tune] .string-gauge {
+  background: var(--good);
 }
 
 .string-check {
@@ -890,12 +1036,16 @@ select:hover {
   stroke-width: 3.2;
 }
 
+/* The reference note stays one tap away, without competing with the note name. */
 .string-tone {
-  min-height: 36px;
-  border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.18);
-  color: var(--muted);
-  transition: color 120ms linear;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 0 0 13px 13px;
+  color: var(--faint);
+  transition:
+    color 120ms linear,
+    background-color 120ms linear;
 }
 
 .string-tone:hover {
@@ -903,8 +1053,8 @@ select:hover {
 }
 
 .string-tone svg {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .string[data-playing] .string-tone {
@@ -927,31 +1077,12 @@ select:hover {
   }
 
   .string-select {
-    min-height: clamp(52px, 8.5dvh / var(--rows, 1), 72px);
+    min-height: clamp(56px, 8.5dvh / var(--rows, 1), 72px);
   }
 
   .string-tone {
-    min-height: clamp(36px, 5.2dvh / var(--rows, 1), 46px);
+    min-height: clamp(34px, 5dvh / var(--rows, 1), 44px);
   }
-}
-
-/* ---- Footer ------------------------------------------------------------- */
-
-.footnote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--faint);
-  font-size: 0.76rem;
-  text-align: center;
-  text-wrap: balance;
-}
-
-.footnote svg {
-  flex: none;
-  width: 13px;
-  height: 13px;
 }
 
 /* ---- Sheets (settings and share) ---------------------------------------- */

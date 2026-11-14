@@ -64,6 +64,23 @@ describe('TunerSession in automatic mode', () => {
     expect(session.view.tuned).toEqual([false, false, true, false, false, false]);
   });
 
+  it('reports how far along the hold is', () => {
+    const session = guitar();
+    expect(session.view.holdProgress).toBe(0);
+    // Out of tune: nothing is counted.
+    expect(hold(session, hz('G3', 20), 0, 400).holdProgress).toBe(0);
+    hold(session, null, 420, 100);
+
+    expect(hold(session, hz('D3', 1), 1000, 500).holdProgress).toBeCloseTo(0.5, 6);
+    expect(hold(session, hz('D3', 1), 1520, 600).holdProgress).toBe(1);
+
+    // Silence shows nothing; the check brings the next pluck straight to the end.
+    expect(hold(session, null, 2140, 200).holdProgress).toBe(0);
+    expect(session.update(hz('D3', 1), 2400).holdProgress).toBe(1);
+    // Another string starts from the beginning.
+    expect(session.update(hz('E4', 1), 2420).holdProgress).toBeLessThan(0.05);
+  });
+
   it('shows the new check to whoever listens for it', () => {
     const session = guitar();
     const seen: boolean[][] = [];

@@ -10,8 +10,9 @@ works offline, and the audio never leaves your device.
 - Guitar (7 tunings), 4- and 5-string bass, ukulele, cavaquinho, mandolin,
   viola caipira (Cebolão in D, Cebolão in E, Rio Abaixo) and a chromatic mode.
 - Automatic mode (finds the string you play) and manual mode (tap a string).
-- Reference tone for every string, A4 calibration from 430 to 450 Hz, letter or
-  Do Re Mi note names, sharps or flats, adjustable tolerance and sensitivity.
+- Reference note for every string, sounding like that string plucked on the
+  instrument, A4 calibration from 430 to 450 Hz, letter or Do Re Mi note names,
+  sharps or flats, adjustable tolerance and sensitivity.
 - Once the microphone has been allowed, later visits start listening without a
   tap wherever the browser lets audio start by itself (an installed app, for
   example). The microphone is closed whenever the app is not on screen.
@@ -81,7 +82,7 @@ report.
 
 | Folder      | Contents                                                           |
 | ----------- | ------------------------------------------------------------------ |
-| `src/audio` | Microphone capture (AudioWorklet), reference tone, screen wake lock |
+| `src/audio` | Microphone capture (AudioWorklet), reference notes, screen wake lock |
 | `src/pitch` | Pitch detector, noise gate, smoothing                               |
 | `src/music` | Notes, cents, instruments and tunings, string matching              |
 | `src/ui`    | Screen, settings, sharing, diagnostics                              |
@@ -94,3 +95,10 @@ second pass keeps only the first few harmonics and locates the period with
 parabolic interpolation, to well under one cent on a clean signal. The analysis
 window is sized from the lowest note of the selected tuning, so high
 instruments respond faster than a 5-string bass.
+
+The reference notes are not recordings. Each one is computed when it is first
+played, from a model of the plucked string: the partials that a pluck at a
+given point excites, each fading at its own rate, coloured by the resonances of
+the instrument's body. That keeps the app small and offline, and the note
+exactly in tune for any tuning and calibration; the unit tests have the tuner
+itself confirm every string within one cent.

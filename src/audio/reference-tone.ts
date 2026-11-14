@@ -1,89 +1,55 @@
 import { getAudioContext, resumeAudioContext } from './context';
+import { pluckVoiceFor, synthesizePluck } from './pluck';
 
-const PEAK_GAIN = 0.35;
-const FADE_IN_SECONDS = 0.04;
-const FADE_OUT_SECONDS = 0.25;
 const STOP_FADE_SECONDS = 0.06;
-const DEFAULT_DURATION_SECONDS = 3;
+/** Notes kept ready to be played again without building them anew. */
+const MAX_CACHED_NOTES = 12;
 
-const MAX_HARMONICS = 64;
-/** Harmonics above this frequency are left out. */
-const HARMONIC_LIMIT_HZ = 5000;
-/** Above this frequency the harmonics are rolled off to keep the timbre soft. */
-const BRIGHTNESS_HZ = 900;
-
-/**
- * Harmonic amplitudes for a tone at `frequency`. Phone speakers reproduce
- * almost nothing below 200-300 Hz, so a low note is only audible through its
- * harmonics: they fall off slowly (1/sqrt(k)) up to about 900 Hz and quickly
- * above that. A bass string therefore gets dozens of harmonics while a high
- * note stays close to a sine.
- */
-export function harmonicAmplitudes(frequency: number): number[] {
-  const count = Math.max(1, Math.min(MAX_HARMONICS, Math.floor(HARMONIC_LIMIT_HZ / frequency)));
-  const amplitudes: number[] = [];
-  for (let k = 1; k <= count; k++) {
-    const rollOff = 1 + ((k * frequency) / BRIGHTNESS_HZ) ** 2;
-    amplitudes.push(1 / (Math.sqrt(k) * rollOff));
-  }
-  return amplitudes;
-}
-
-interface Voice {
-  oscillator: OscillatorNode;
+interface Sound {
+  source: AudioBufferSourceNode;
   gain: GainNode;
 }
 
-/** Plays a reference note with a soft attack and release. */
+/**
+ * Plays the reference note of a string as that string sounds when it is
+ * plucked on the instrument.
+ */
 export class ReferenceTone {
-  /** Called when a tone starts or stops. */
+  /** Called when a note starts or stops. */
   onChange: (playing: boolean) => void = () => undefined;
 
-  private voice: Voice | null = null;
+  private sound: Sound | null = null;
+  private readonly notes = new Map<string, AudioBuffer>();
 
   get playing(): boolean {
-    return this.voice !== null;
+    return this.sound !== null;
   }
 
   /**
-   * Plays `frequency` for a few seconds, replacing any tone that is already
-   * playing. Has to be called from a user gesture.
+   * Plucks a string of the given instrument tuned to `frequency` and lets it
+   * ring, replacing any note that is still sounding. Has to be called from a
+   * user gesture.
    *
-   * @returns Whether the tone started.
+   * @returns Whether the note started.
    */
-  async play(frequency: number, seconds: number = DEFAULT_DURATION_SECONDS): Promise<boolean> {
+  async play(frequency: number, instrumentId: string): Promise<boolean> {
     this.stop();
     if (!(await resumeAudioContext())) return false;
     const audio = getAudioContext();
 
-    const amplitudes = harmonicAmplitudes(frequency);
-    const real = new Float32Array(amplitudes.length + 1);
-    const imag = new Float32Array(amplitudes.length + 1);
-    amplitudes.forEach((amplitude, i) => (imag[i + 1] = amplitude));
-
-    const oscillator = audio.createOscillator();
-    oscillator.setPeriodicWave(audio.createPeriodicWave(real, imag));
-    oscillator.frequency.value = frequency;
-
+    const source = audio.createBufferSource();
+    source.buffer = this.noteFor(audio, frequency, instrumentId);
     const gain = audio.createGain();
-    const now = audio.currentTime;
-    const end = now + seconds;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(PEAK_GAIN, now + FADE_IN_SECONDS);
-    gain.gain.setValueAtTime(PEAK_GAIN, end - FADE_OUT_SECONDS);
-    gain.gain.linearRampToValueAtTime(0, end);
-
-    oscillator.connect(gain);
+    source.connect(gain);
     gain.connect(audio.destination);
-    oscillator.start(now);
-    oscillator.stop(end + 0.02);
+    source.start();
 
-    const voice: Voice = { oscillator, gain };
-    this.voice = voice;
-    oscillator.onended = () => {
+    const sound: Sound = { source, gain };
+    this.sound = sound;
+    source.onended = () => {
       gain.disconnect();
-      if (this.voice === voice) {
-        this.voice = null;
+      if (this.sound === sound) {
+        this.sound = null;
         this.onChange(false);
       }
     };
@@ -91,22 +57,36 @@ export class ReferenceTone {
     return true;
   }
 
-  /** Fades the current tone out quickly. */
+  /** Damps the note that is sounding. */
   stop(): void {
-    const voice = this.voice;
-    if (!voice) return;
-    this.voice = null;
+    const sound = this.sound;
+    if (!sound) return;
+    this.sound = null;
     const audio = getAudioContext();
     const now = audio.currentTime;
-    const { gain } = voice.gain;
-    gain.cancelScheduledValues(now);
+    const { gain } = sound.gain;
     gain.setValueAtTime(gain.value, now);
     gain.linearRampToValueAtTime(0, now + STOP_FADE_SECONDS);
     try {
-      voice.oscillator.stop(now + STOP_FADE_SECONDS + 0.02);
+      sound.source.stop(now + STOP_FADE_SECONDS + 0.02);
     } catch {
       // Already stopped.
     }
     this.onChange(false);
+  }
+
+  private noteFor(audio: AudioContext, frequency: number, instrumentId: string): AudioBuffer {
+    const key = `${instrumentId} ${frequency.toFixed(3)}`;
+    let note = this.notes.get(key);
+    if (!note) {
+      const samples = synthesizePluck(frequency, audio.sampleRate, pluckVoiceFor(instrumentId));
+      note = audio.createBuffer(1, samples.length, audio.sampleRate);
+      note.getChannelData(0).set(samples);
+      // A Map lists its keys in the order they were added: the first is the oldest.
+      const oldest = this.notes.keys().next();
+      if (this.notes.size >= MAX_CACHED_NOTES && !oldest.done) this.notes.delete(oldest.value);
+      this.notes.set(key, note);
+    }
+    return note;
   }
 }

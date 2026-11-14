@@ -72,6 +72,22 @@ test.describe('guitar with an A2 that is in tune', () => {
     await expectReading(page, { note: 'A2', cents: 0, hint: 'In tune' });
   });
 
+  test('lets a reference note ring out, then listens again', async ({ page }) => {
+    await page.goto('./');
+    await enableMicrophone(page);
+    await expect(page.getByTestId('note')).toHaveText('A2');
+
+    // The plucked high E fades by itself within a few seconds.
+    await page.getByRole('button', { name: 'Play the E4 reference tone' }).click();
+    const string = page.getByTestId('string-5').locator('..');
+    await expect(string).toHaveAttribute('data-playing', 'true');
+    await expect(page.getByTestId('hint')).toHaveText('Playing reference tone');
+
+    await expect(string).not.toHaveAttribute('data-playing');
+    await expect(page.getByRole('button', { name: 'Play the E4 reference tone' })).toBeVisible();
+    await expectReading(page, { note: 'A2', cents: 0, hint: 'In tune' });
+  });
+
   test('closes the microphone in the background and reopens it by itself', async ({ page }) => {
     await page.goto('./?debug=1');
     const output = page.locator('#debug-output');

@@ -446,7 +446,7 @@ export class TunerApp {
     }
     const midi = this.strings[index];
     if (midi === undefined) return;
-    if (await this.tone.play(midiToFrequency(midi, this.settings.a4))) {
+    if (await this.tone.play(midiToFrequency(midi, this.settings.a4), this.instrument.id)) {
       this.playingIndex = index;
     } else {
       showToast('Could not start audio playback');

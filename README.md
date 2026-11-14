@@ -32,8 +32,9 @@ Open <http://localhost:5173/tuner/>. Browsers only allow the microphone on
 ## Tests
 
 ```sh
-npm test            # unit tests (Vitest)
-npm run test:e2e    # builds, then drives the production build in Chrome (Playwright)
+npm test              # unit tests (Vitest)
+npm run test:e2e      # builds, then drives the production build in Chrome (Playwright)
+npm run test:e2e:all  # the same, plus the layout checks in Firefox and WebKit
 ```
 
 The unit tests feed synthetic signals to the pitch detector at 44.1 and 48 kHz:
@@ -44,10 +45,18 @@ frequency, and check the note and cents shown on screen. Set
 `PW_CHANNEL=chromium` to use Playwright's own browser instead
 (`npx playwright install chromium`).
 
+The fake microphone is a Chrome feature, so Firefox and WebKit (the engine of
+Safari) run only the layout checks, which need no sound: that the dial, the
+note and the strings fit and line up on several screen sizes. Install those
+browsers once with `npx playwright install firefox webkit`.
+
 ## Publish
 
 Every push to `main` runs `.github/workflows/deploy.yml`, which tests, builds
-and deploys `dist/` to GitHub Pages. One-time setup for a new repository:
+and deploys `dist/` to GitHub Pages. Run by hand on another branch (*Actions* →
+*Deploy to GitHub Pages* → *Run workflow*), it tests that branch without
+deploying it and keeps screenshots from each browser. One-time setup for a new
+repository:
 
 ```sh
 gh repo create tuner --public --source=. --push
